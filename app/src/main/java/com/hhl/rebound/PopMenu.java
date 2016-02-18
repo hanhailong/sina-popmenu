@@ -48,19 +48,26 @@ public class PopMenu {
     private static final int DEFAULT_FRICTION = 5;
 
     /**
-     * item之间的间距
+     * item水平之间的间距
      */
-    private static final int DEFAULT_PADDING = 40;
+    private static final int DEFAULT_HORIZONTAL_PADDING = 40;
+    /**
+     * item竖直之间的间距
+     */
+    private static final int DEFAULT_VERTICAL_PADDING = 15;
 
     private Activity mActivity;
     private int mColumnCount;
     private List<PopMenuItem> mMenuItems = new ArrayList<>();
     private FrameLayout mAnimateLayout;
     private GridLayout mGridLayout;
+    private ImageView mCloseIv;
     private int mDuration;
     private double mTension;
     private double mFriction;
-    private int mPadding;
+    private int mHorizontalPadding;
+    private int mVerticalPadding;
+    private PopMenuItemListener mPopMenuItemListener;
 
     private int mScreenWidth;
     private int mScreenHeight;
@@ -75,54 +82,39 @@ public class PopMenu {
 
     private PopMenu(Builder builder) {
         this.mActivity = builder.activity;
-        this.mMenuItems = builder.itemList;
+        this.mMenuItems.clear();
+        this.mMenuItems.addAll(builder.itemList);
 
         this.mColumnCount = builder.columnCount;
         this.mDuration = builder.duration;
         this.mTension = builder.tension;
         this.mFriction = builder.friction;
-        this.mPadding = builder.padding;
+        this.mHorizontalPadding = builder.horizontalPadding;
+        this.mVerticalPadding = builder.verticalPadding;
+        this.mPopMenuItemListener = builder.popMenuItemListener;
 
         mScreenWidth = mActivity.getResources().getDisplayMetrics().widthPixels;
         mScreenHeight = mActivity.getResources().getDisplayMetrics().heightPixels;
-
-        buildAnimateGridLayout();
     }
 
     /**
      * 显示菜单
      */
     public void show() {
-        if (mAnimateLayout != null) {
+        buildAnimateGridLayout();
 
-            if (mAnimateLayout.getParent() != null) {
-                ViewGroup viewGroup = (ViewGroup) mAnimateLayout.getParent();
-                viewGroup.removeView(mAnimateLayout);
-            }
-
-            ViewGroup decorView = (ViewGroup) mActivity.getWindow().getDecorView();
-            decorView.addView(mAnimateLayout);
-
-            //ImageView
-            ImageView closeIv = new ImageView(mActivity);
-            closeIv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-            closeIv.setImageResource(R.drawable.tabbar_compose_background_icon_close);
-            closeIv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    hide();
-                }
-            });
-            FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            layoutParams.bottomMargin = dp2px(mActivity, 25);
-            mAnimateLayout.addView(closeIv, layoutParams);
-
-            //执行显示动画
-            showSubMenus(mGridLayout);
-
-            isShowing = true;
+        if (mAnimateLayout.getParent() != null) {
+            ViewGroup viewGroup = (ViewGroup) mAnimateLayout.getParent();
+            viewGroup.removeView(mAnimateLayout);
         }
+
+        ViewGroup decorView = (ViewGroup) mActivity.getWindow().getDecorView();
+        decorView.addView(mAnimateLayout);
+
+        //执行显示动画
+        showSubMenus(mGridLayout);
+
+        isShowing = true;
     }
 
     /**
@@ -150,43 +142,62 @@ public class PopMenu {
      * 构建动画布局
      */
     private void buildAnimateGridLayout() {
-        if (mAnimateLayout == null) {
+        mAnimateLayout = new FrameLayout(mActivity);
 
-            mAnimateLayout = new FrameLayout(mActivity);
+        mGridLayout = new GridLayout(mActivity);
+        mGridLayout.setColumnCount(mColumnCount);
+        mGridLayout.setBackgroundColor(Color.parseColor("#f0ffffff"));
 
-            mGridLayout = new GridLayout(mActivity);
-            mGridLayout.setColumnCount(mColumnCount);
-            mGridLayout.setBackgroundColor(Color.parseColor("#f0ffffff"));
+        int hPadding = dp2px(mActivity, mHorizontalPadding);
+        int vPadding = dp2px(mActivity, mVerticalPadding);
+        int itemWidth = (mScreenWidth - (mColumnCount + 1) * hPadding) / mColumnCount;
 
-            int padding = dp2px(mActivity, mPadding);
-            int itemWidth = (mScreenWidth - (mColumnCount + 1) * padding) / mColumnCount;
+        int rowCount = mMenuItems.size() % mColumnCount == 0 ? mMenuItems.size() / mColumnCount :
+                mMenuItems.size() / mColumnCount + 1;
 
-            int rowCount = mMenuItems.size() % mColumnCount == 0 ? mMenuItems.size() / mColumnCount :
-                    mMenuItems.size() / mColumnCount + 1;
+        int topMargin = (mScreenHeight - (itemWidth + vPadding) * rowCount + vPadding) / 2;
 
-            int topMargin = (mScreenHeight - (itemWidth + padding) * rowCount + padding) / 2;
-
-            for (int i = 0; i < mMenuItems.size(); i++) {
-                ImageView imageView = new ImageView(mActivity);
-                imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-                PopMenuItem menuItem = mMenuItems.get(i);
-                imageView.setImageDrawable(menuItem.getDrawable());
-
-                GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-                lp.width = itemWidth;
-                lp.height = itemWidth;
-                lp.leftMargin = padding;
-                if (i / mColumnCount == 0) {
-                    lp.topMargin = topMargin;
-                } else {
-                    lp.topMargin = padding;
+        for (int i = 0; i < mMenuItems.size(); i++) {
+            final int position = i;
+            PopSubView subView = new PopSubView(mActivity);
+            PopMenuItem menuItem = mMenuItems.get(i);
+            subView.setPopMenuItem(menuItem);
+            subView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mPopMenuItemListener != null) {
+                        mPopMenuItemListener.onItemClick(PopMenu.this, position);
+                    }
+                    hide();
                 }
+            });
 
-                mGridLayout.addView(imageView, lp);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+            lp.width = itemWidth;
+            lp.leftMargin = hPadding;
+            if (i / mColumnCount == 0) {
+                lp.topMargin = topMargin;
+            } else {
+                lp.topMargin = vPadding;
             }
-
-            mAnimateLayout.addView(mGridLayout);
+            mGridLayout.addView(subView, lp);
         }
+
+        mAnimateLayout.addView(mGridLayout);
+
+        mCloseIv = new ImageView(mActivity);
+        mCloseIv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        mCloseIv.setImageResource(R.drawable.tabbar_compose_background_icon_close);
+        mCloseIv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hide();
+            }
+        });
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        layoutParams.bottomMargin = dp2px(mActivity, 25);
+        mAnimateLayout.addView(mCloseIv, layoutParams);
     }
 
     /**
@@ -248,7 +259,9 @@ public class PopMenu {
         private int duration = DEFAULT_DURATION;
         private double tension = DEFAULT_TENSION;
         private double friction = DEFAULT_FRICTION;
-        private int padding = DEFAULT_PADDING;
+        private int horizontalPadding = DEFAULT_HORIZONTAL_PADDING;
+        private int verticalPadding = DEFAULT_VERTICAL_PADDING;
+        private PopMenuItemListener popMenuItemListener;
 
         public Builder attachToActivity(Activity activity) {
             this.activity = activity;
@@ -280,8 +293,18 @@ public class PopMenu {
             return this;
         }
 
-        public Builder padding(int padding) {
-            this.padding = padding;
+        public Builder horizontalPadding(int padding) {
+            this.horizontalPadding = padding;
+            return this;
+        }
+
+        public Builder verticalPadding(int padding) {
+            this.verticalPadding = padding;
+            return this;
+        }
+
+        public Builder setOnItemClickListener(PopMenuItemListener listener) {
+            this.popMenuItemListener = listener;
             return this;
         }
 

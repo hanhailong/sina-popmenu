@@ -14,11 +14,16 @@
 	                .addMenuItem(new PopMenuItem("签到", getResources().getDrawable(R.drawable.tabbar_compose_lbs)))
 	                .addMenuItem(new PopMenuItem("点评", getResources().getDrawable(R.drawable.tabbar_compose_review)))
 	                .addMenuItem(new PopMenuItem("更多", getResources().getDrawable(R.drawable.tabbar_compose_more)))
-	                .build();
+	                .setOnItemClickListener(new PopMenuItemListener() {
+	                    @Override
+	                    public void onItemClick(PopMenu popMenu, int position) {
+	                        Toast.makeText(MainActivity.this, "你点击了第" + position + "个位置", Toast.LENGTH_SHORT).show();
+	                    }
+	                })
+	                .build();	
 	popMenu.show();
 
-# TODO
-* 添加Item点击效果
-* 添加点击Item底部文字
-* 添加点击Item事件回调
-* 其他
+
+# 其他
+
+如果你在使用的过程中遇到问题，请联系我，谢谢！！！
