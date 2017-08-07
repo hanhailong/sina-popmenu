@@ -109,7 +109,8 @@ public class PopMenu {
         }
 
         ViewGroup decorView = (ViewGroup) mActivity.getWindow().getDecorView();
-        decorView.addView(mAnimateLayout);
+        ViewGroup contentView = (ViewGroup) decorView.findViewById(android.R.id.content);
+        contentView.addView(mAnimateLayout);
 
         //执行显示动画
         showSubMenus(mGridLayout);
@@ -127,7 +128,8 @@ public class PopMenu {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     ViewGroup decorView = (ViewGroup) mActivity.getWindow().getDecorView();
-                    decorView.removeView(mAnimateLayout);
+                    ViewGroup contentView = (ViewGroup) decorView.findViewById(android.R.id.content);
+                    contentView.removeView(mAnimateLayout);
                 }
             });
             isShowing = false;
